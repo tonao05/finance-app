@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Finance Tracker</h1>
+      <p>Record daily income, expenses, balances, receipts, and exports.</p>
+    </header>
+
+    <section class="card form-card">
+      <h2>Add or edit a transaction</h2>
+      <p id="form-mode" class="form-mode">Enter a new transaction or select one to edit.</p>
+      <form id="transaction-form">
+        <input type="hidden" id="transaction-id" />
+        <div class="row">
+          <label>Date</label>
+          <input type="date" id="date" required />
+        </div>
+        <div class="row">
+          <label>Type</label>
+          <select id="type" required>
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+            <option value="transfer">Transfer</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>Category</label>
+          <select id="category" required>
+            <option value="อาหาร">อาหาร</option>
+            <option value="การเดินทาง">การเดินทาง</option>
+            <option value="ค่าสาธารณูปโภค">ค่าสาธารณูปโภค</option>
+            <option value="ช้อปปิ้ง">ช้อปปิ้ง</option>
+            <option value="เงินเดือน">เงินเดือน</option>
+            <option value="โอน">โอน</option>
+            <option value="ชำระบัญชี">ชำระบัญชี</option>
+            <option value="ค่า subscription">ค่า subscription</option>
+            <option value="ค่าน้ำมัน">ค่าน้ำมัน</option>
+            <option value="ค่าทางด่วน">ค่าทางด่วน</option>
+            <option value="อื่นๆ">อื่นๆ</option>
+          </select>
+        </div>
+        <div class="row regular-account">
+          <label>Account</label>
+          <select id="account"></select>
+        </div>
+        <div class="row transfer-fields hidden">
+          <label>From account</label>
+          <select id="from-account"></select>
+        </div>
+        <div class="row transfer-fields hidden">
+          <label>To account</label>
+          <select id="to-account"></select>
+        </div>
+        <div class="row">
+          <label>Amount</label>
+          <input type="number" id="amount" step="0.01" min="0" required />
+        </div>
+        <div class="row">
+          <label>Description</label>
+          <input type="text" id="description" placeholder="e.g. groceries, transfer, salary" />
+        </div>
+        <div class="row">
+          <label>Receipt image</label>
+          <input type="file" id="receipt" accept="image/*" />
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="primary" id="submit-button">Save transaction</button>
+          <button type="button" class="secondary" id="cancel-edit">Cancel</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="grid overview-grid">
+      <div class="card balances-card">
+        <h2>Remaining balances</h2>
+        <div id="balances" class="balances"></div>
+      </div>
+      <div class="card account-management-card">
+        <h2>Account management</h2>
+        <div class="account-add-form">
+          <div class="row">
+            <label>Account name</label>
+            <input type="text" id="new-account-name" placeholder="Account name" />
+          </div>
+          <div class="row">
+            <label>Initial balance</label>
+            <input type="number" id="new-account-balance" step="0.01" />
+          </div>
+          <button type="button" id="add-account" class="secondary">Add account</button>
+        </div>
+        <div id="accounts-list" class="accounts-list">
+          <table>
+            <thead>
+              <tr>
+                <th>Account Name</th>
+                <th>Balance</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="accounts-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card expenses-card">
+        <h2>Expense analysis</h2>
+        <div id="expense-analysis"></div>
+      </div>
+      <div class="card monthly-card">
+        <h2>Monthly summary</h2>
+        <div id="monthly-summary" class="monthly-summary"></div>
+        <div id="summary-chart" class="summary-chart"></div>
+      </div>
+    </section>
+
+    <section class="card history-card">
+      <h2>Transactions & balances research</h2>
+      <div class="controls">
+        <button id="clear-data">Clear all data</button>
+        <button id="export-json">Export JSON</button>
+        <button id="export-csv">Export CSV</button>
+      </div>
+      <div class="transaction-table-wrapper">
+        <table id="transaction-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Category</th>
+              <th>Account</th>
+              <th>Amount</th>
+              <th>Description</th>
+              <th>Receipt</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
