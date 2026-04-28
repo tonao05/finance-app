@@ -5,6 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Finance Tracker</title>
   <link rel="stylesheet" href="style.css" />
+  <script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-analytics.js";
+    import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc, query, orderBy, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCrlkiYT19j_8CxnZvnChO21qtWKR4J3jc",
+      authDomain: "finance-app-f2d4a.firebaseapp.com",
+      projectId: "finance-app-f2d4a",
+      storageBucket: "finance-app-f2d4a.firebasestorage.app",
+      messagingSenderId: "700569019087",
+      appId: "1:700569019087:web:fb50a0e92032fdb7824dba",
+      measurementId: "G-D108NPJ96G"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // Make db and auth available globally for app.js
+    window.db = db;
+    window.auth = auth;
+    window.firestore = { collection, doc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc, query, orderBy, getDocs, addDoc };
+
+    // Sign in anonymously and set userId
+    signInAnonymously(auth).then(() => {
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          window.userId = user.uid;
+        }
+      });
+    }).catch((error) => {
+      console.error('Anonymous sign-in failed:', error);
+    });
+  </script>
 </head>
 <body>
   <div class="container">

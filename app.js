@@ -8,6 +8,13 @@ const DEFAULT_ACCOUNTS = [
   { name: 'Credit Card', balance: 0 },
 ];
 
+// Firebase imports (available via window)
+const { collection, doc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc, query, orderBy, getDocs, addDoc } = window.firestore;
+
+// Use Firestore for data storage
+let db = window.db;
+let userId = null;
+
 const form = document.getElementById('transaction-form');
 const formModeText = document.getElementById('form-mode');
 const transactionIdInput = document.getElementById('transaction-id');
@@ -40,18 +47,39 @@ const typeDirection = {
   income: 1,
 };
 
-let accounts = loadAccounts();
-let transactions = loadTransactions();
+let accounts = [];
+let transactions = [];
 let editingId = null;
 let editingAccountIndex = -1;
 
-function loadAccounts() {
+async function loadAccounts() {
+  if (db && userId) {
+    const accountsRef = doc(db, 'users', userId, 'data', 'accounts');
+    try {
+      const docSnap = await getDoc(accountsRef);
+      if (docSnap.exists()) {
+        accounts = docSnap.data().accounts || [...DEFAULT_ACCOUNTS];
+      } else {
+        accounts = [...DEFAULT_ACCOUNTS];
+      }
+      // Set up real-time listener
+      onSnapshot(accountsRef, (docSnap) => {
+        if (docSnap.exists()) {
+          accounts = docSnap.data().accounts || [...DEFAULT_ACCOUNTS];
+          refreshApp();
+        }
+      });
+      return accounts;
+    } catch (error) {
+      console.error('Error loading accounts:', error);
+    }
+  }
+  // Fallback to localStorage
   const saved = localStorage.getItem(ACCOUNTS_KEY);
   if (!saved) return [...DEFAULT_ACCOUNTS];
   try {
     const parsed = JSON.parse(saved);
     if (Array.isArray(parsed) && parsed.length) {
-      // Migrate old string array to object array
       if (typeof parsed[0] === 'string') {
         return parsed.map(name => ({ name, balance: 0 }));
       }
@@ -64,10 +92,39 @@ function loadAccounts() {
 }
 
 function saveAccounts() {
+  if (db && userId) {
+    const accountsRef = doc(db, 'users', userId, 'data', 'accounts');
+    setDoc(accountsRef, { accounts }).catch((error) => {
+      console.error('Error saving accounts:', error);
+    });
+  }
+  // Also save to localStorage as backup
   localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
 }
 
-function loadTransactions() {
+async function loadTransactions() {
+  if (db && userId) {
+    const transactionsRef = doc(db, 'users', userId, 'data', 'transactions');
+    try {
+      const docSnap = await getDoc(transactionsRef);
+      if (docSnap.exists()) {
+        transactions = docSnap.data().transactions || [];
+      } else {
+        transactions = [];
+      }
+      // Set up real-time listener
+      onSnapshot(transactionsRef, (docSnap) => {
+        if (docSnap.exists()) {
+          transactions = docSnap.data().transactions || [];
+          refreshApp();
+        }
+      });
+      return transactions;
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+    }
+  }
+  // Fallback to localStorage
   const saved = localStorage.getItem(STORAGE_KEY);
   if (!saved) return [];
   try {
@@ -78,6 +135,13 @@ function loadTransactions() {
 }
 
 function saveTransactions() {
+  if (db && userId) {
+    const transactionsRef = doc(db, 'users', userId, 'data', 'transactions');
+    setDoc(transactionsRef, { transactions }).catch((error) => {
+      console.error('Error saving transactions:', error);
+    });
+  }
+  // Also save to localStorage as backup
   localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
 }
 
@@ -643,9 +707,36 @@ clearDataButton.addEventListener('click', () => {
   refreshApp();
 });
 
-window.addEventListener('DOMContentLoaded', () => {
-  populateAccountLists();
-  resetFormState();
-  dateInput.value = new Date().toISOString().slice(0, 10);
-  refreshApp();
+window.addEventListener('DOMContentLoaded', async () => {
+  // Wait for Firebase auth
+  if (window.auth) {
+    window.auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        userId = user.uid;
+        // Load data from Firestore
+        accounts = await loadAccounts();
+        transactions = await loadTransactions();
+        populateAccountLists();
+        resetFormState();
+        dateInput.value = new Date().toISOString().slice(0, 10);
+        refreshApp();
+      } else {
+        // Fallback to localStorage if not signed in
+        accounts = await loadAccounts();
+        transactions = await loadTransactions();
+        populateAccountLists();
+        resetFormState();
+        dateInput.value = new Date().toISOString().slice(0, 10);
+        refreshApp();
+      }
+    });
+  } else {
+    // Fallback if Firebase not loaded
+    accounts = await loadAccounts();
+    transactions = await loadTransactions();
+    populateAccountLists();
+    resetFormState();
+    dateInput.value = new Date().toISOString().slice(0, 10);
+    refreshApp();
+  }
 });
