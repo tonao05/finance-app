@@ -184,6 +184,8 @@ function populateAccountsList() {
   accountsListEl.innerHTML = '';
   accounts.forEach((account, index) => {
     const tr = document.createElement('tr');
+    tr.setAttribute('draggable', 'true');
+    tr.dataset.index = index;
     tr.innerHTML = `
       <td>${account.name}</td>
       <td>${formatCurrency(account.balance)}</td>
@@ -192,6 +194,40 @@ function populateAccountsList() {
         <button class="action-button delete-account" data-index="${index}">Delete</button>
       </td>
     `;
+
+    tr.addEventListener('dragstart', (event) => {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', index);
+      tr.classList.add('dragging');
+    });
+
+    tr.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      tr.classList.add('drag-over');
+    });
+
+    tr.addEventListener('dragleave', () => {
+      tr.classList.remove('drag-over');
+    });
+
+    tr.addEventListener('drop', (event) => {
+      event.preventDefault();
+      tr.classList.remove('drag-over');
+      const fromIndex = Number(event.dataTransfer.getData('text/plain'));
+      const toIndex = Number(tr.dataset.index);
+      if (fromIndex === toIndex || Number.isNaN(fromIndex) || Number.isNaN(toIndex)) return;
+
+      const [movedAccount] = accounts.splice(fromIndex, 1);
+      accounts.splice(toIndex, 0, movedAccount);
+      saveAccounts();
+      refreshApp();
+    });
+
+    tr.addEventListener('dragend', () => {
+      tr.classList.remove('dragging');
+      document.querySelectorAll('.accounts-list tr').forEach((row) => row.classList.remove('drag-over'));
+    });
+
     accountsListEl.appendChild(tr);
   });
 }

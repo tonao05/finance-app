@@ -181,6 +181,30 @@ button:hover {
   border-bottom: 1px solid #e2e8f0;
 }
 
+.accounts-list tr {
+  cursor: grab;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.accounts-list tr:active {
+  cursor: grabbing;
+}
+
+.accounts-list tr.dragging {
+  opacity: 0.5;
+}
+
+.drag-instructions {
+  margin: 0 0 12px;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.accounts-list tr.drag-over {
+  outline: 2px dashed #2563eb;
+  background: #eff6ff;
+}
+
 .accounts-list th {
   background: #f8fafc;
   font-weight: 600;
