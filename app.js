@@ -204,6 +204,11 @@ function saveTransactions() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
 }
 
+function clearLocalData() {
+  localStorage.removeItem(ACCOUNTS_KEY);
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 function formatCurrency(value) {
   return new Intl.NumberFormat('th-TH', {
     style: 'currency',
@@ -759,8 +764,11 @@ exportCsvButton.addEventListener('click', () => {
 });
 
 clearDataButton.addEventListener('click', () => {
-  if (!confirm('Clear all saved finance data?')) return;
+  if (!confirm('Clear all saved finance data, including accounts?')) return;
+  accounts = [...DEFAULT_ACCOUNTS];
   transactions = [];
+  clearLocalData();
+  saveAccounts();
   saveTransactions();
   resetFormState();
   refreshApp();
@@ -780,9 +788,15 @@ async function initApp() {
     window.auth.onAuthStateChanged(async (user) => {
       if (user) {
         userId = user.uid;
+      } else {
+        userId = null;
       }
       updateAuthUI(user);
       await finishInit();
+      if (user && !user.isAnonymous) {
+        saveAccounts();
+        saveTransactions();
+      }
     });
 
     // Handle redirect result

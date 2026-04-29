@@ -31,11 +31,6 @@
     window.db = firebase.firestore();
     window.auth = firebase.auth();
     window.firestore = firebase.firestore;
-
-    // Sign in anonymously in the background as fallback
-    firebase.auth().signInAnonymously().catch((error) => {
-      console.error('Anonymous sign-in failed:', error);
-    });
   </script>
   <script src="app.js" defer></script>
 </head>

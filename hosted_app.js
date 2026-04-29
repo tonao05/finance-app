@@ -758,9 +758,17 @@ exportCsvButton.addEventListener('click', () => {
   downloadFile('finance-data.csv', csv);
 });
 
+function clearLocalData() {
+  localStorage.removeItem(ACCOUNTS_KEY);
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 clearDataButton.addEventListener('click', () => {
-  if (!confirm('Clear all saved finance data?')) return;
+  if (!confirm('Clear all saved finance data, including accounts?')) return;
+  accounts = [...DEFAULT_ACCOUNTS];
   transactions = [];
+  clearLocalData();
+  saveAccounts();
   saveTransactions();
   resetFormState();
   refreshApp();
@@ -780,9 +788,15 @@ async function initApp() {
     window.auth.onAuthStateChanged(async (user) => {
       if (user) {
         userId = user.uid;
+      } else {
+        userId = null;
       }
       updateAuthUI(user);
       await finishInit();
+      if (user && !user.isAnonymous) {
+        saveAccounts();
+        saveTransactions();
+      }
     });
   } else {
     await finishInit();
@@ -813,7 +827,7 @@ if (document.readyState === 'loading') {
 if (signInButton) {
   signInButton.addEventListener('click', () => {
     const provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithPopup(provider).catch((error) => {
+    firebase.auth().signInWithRedirect(provider).catch((error) => {
       console.error('Google sign-in failed:', error);
     });
   });
