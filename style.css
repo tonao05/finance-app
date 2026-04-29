@@ -283,6 +283,12 @@ button:hover {
   background: #f8fafc;
 }
 
+.balance-card.total-balance {
+  background: #e3f2fd;
+  border: 1px solid #2196f3;
+  font-weight: bold;
+}
+
 .balance-card strong {
   display: block;
   margin-bottom: 4px;

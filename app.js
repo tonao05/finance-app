@@ -450,6 +450,21 @@ function updateBalances() {
     `;
     balancesEl.appendChild(item);
   });
+
+  // Calculate total remaining balance
+  const totalBalance = Object.values(balances).reduce((sum, amount) => sum + amount, 0);
+
+  // Add total balance item
+  const totalItem = document.createElement('div');
+  totalItem.className = 'balance-card total-balance';
+  totalItem.innerHTML = `
+    <div>
+      <strong>Total Remaining Balance</strong>
+      <span>Sum of all accounts</span>
+    </div>
+    <div>${formatCurrency(totalBalance)}</div>
+  `;
+  balancesEl.appendChild(totalItem);
 }
 
 function updateExpenseAnalysis() {
@@ -733,12 +748,24 @@ cancelEditButton.addEventListener('click', resetFormState);
 typeInput.addEventListener('change', toggleTransferFields);
 
 function downloadFile(filename, contents) {
-  const blob = new Blob([contents], { type: 'text/plain;charset=utf-8' });
+  const isCsv = filename.toLowerCase().endsWith('.csv');
+  const type = isCsv ? 'text/csv;charset=utf-8' : 'text/plain;charset=utf-8';
+  const blobContents = isCsv ? ['\ufeff', contents] : [contents]; // Add BOM for CSV
+  const blob = new Blob(blobContents, { type });
   const anchor = document.createElement('a');
   anchor.href = URL.createObjectURL(blob);
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(anchor.href);
+}
+
+function escapeCsvField(field) {
+  if (typeof field !== 'string') return field;
+  // If field contains comma, quote, or newline, wrap in quotes and escape internal quotes
+  if (field.includes(',') || field.includes('"') || field.includes('\n')) {
+    return '"' + field.replace(/"/g, '""') + '"';
+  }
+  return field;
 }
 
 exportJsonButton.addEventListener('click', () => {
@@ -751,15 +778,15 @@ exportCsvButton.addEventListener('click', () => {
   const rows = transactions.map((item) => [
     item.date,
     item.type,
-    item.category,
-    item.account || '',
-    item.fromAccount || '',
-    item.toAccount || '',
+    escapeCsvField(item.category),
+    escapeCsvField(item.account || ''),
+    escapeCsvField(item.fromAccount || ''),
+    escapeCsvField(item.toAccount || ''),
     item.amount,
-    `"${item.description || ''}"`,
+    escapeCsvField(item.description || ''),
     item.receipt ? 'Included' : 'None',
   ]);
-  const csv = [header, ...rows].map((row) => row.join(',')).join('\n');
+  const csv = [header.map(escapeCsvField), ...rows].map((row) => row.join(',')).join('\n');
   downloadFile('finance-data.csv', csv);
 });
 
