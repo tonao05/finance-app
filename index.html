@@ -32,7 +32,7 @@
     window.auth = firebase.auth();
     window.firestore = firebase.firestore;
 
-    // Sign in anonymously in the background
+    // Sign in anonymously in the background as fallback
     firebase.auth().signInAnonymously().catch((error) => {
       console.error('Anonymous sign-in failed:', error);
     });
@@ -43,6 +43,11 @@
   <div class="container">
     <header>
       <h1>Finance Tracker</h1>
+      <div class="auth-actions" style="float: right; display: flex; gap: 0.5rem; align-items: center;">
+        <span id="user-status" style="color: #fff; font-size: 0.9rem;"></span>
+        <button id="sign-in" type="button">Sign In with Google</button>
+        <button id="sign-out" type="button" style="display: none;">Sign Out</button>
+      </div>
       <p>Record daily income, expenses, balances, receipts, and exports.</p>
     </header>
 

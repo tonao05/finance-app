@@ -41,6 +41,9 @@ const exportCsvButton = document.getElementById('export-csv');
 const clearDataButton = document.getElementById('clear-data');
 const submitButton = document.getElementById('submit-button');
 const cancelEditButton = document.getElementById('cancel-edit');
+const signInButton = document.getElementById('sign-in');
+const signOutButton = document.getElementById('sign-out');
+const userStatusEl = document.getElementById('user-status');
 
 const typeDirection = {
   expense: -1,
@@ -778,6 +781,7 @@ async function initApp() {
       if (user) {
         userId = user.uid;
       }
+      updateAuthUI(user);
       await finishInit();
     });
   } else {
@@ -785,8 +789,40 @@ async function initApp() {
   }
 }
 
+function updateAuthUI(user) {
+  if (!user || user.isAnonymous) {
+    if (signInButton) signInButton.style.display = 'inline-block';
+    if (signOutButton) signOutButton.style.display = 'none';
+    if (userStatusEl) userStatusEl.textContent = '';
+    return;
+  }
+
+  if (signInButton) signInButton.style.display = 'none';
+  if (signOutButton) signOutButton.style.display = 'inline-block';
+  if (userStatusEl) {
+    userStatusEl.textContent = user.email ? `Signed in as ${user.email}` : 'Signed in';
+  }
+}
+
 if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', initApp);
 } else {
   initApp();
+}
+
+if (signInButton) {
+  signInButton.addEventListener('click', () => {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().signInWithPopup(provider).catch((error) => {
+      console.error('Google sign-in failed:', error);
+    });
+  });
+}
+
+if (signOutButton) {
+  signOutButton.addEventListener('click', () => {
+    firebase.auth().signOut().catch((error) => {
+      console.error('Sign-out failed:', error);
+    });
+  });
 }
