@@ -9,7 +9,7 @@ const DEFAULT_ACCOUNTS = [
 ];
 
 // Firebase imports (available via window)
-const { collection, doc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc, query, orderBy, getDocs, addDoc } = window.firestore;
+const firestore = window.firestore || {};
 
 // Use Firestore for data storage
 let db = window.db;
@@ -53,18 +53,37 @@ let editingId = null;
 let editingAccountIndex = -1;
 
 async function loadAccounts() {
-  if (db && userId) {
-    const accountsRef = doc(db, 'users', userId, 'data', 'accounts');
+  if (db && userId && db.doc) {
+    const accountsRef = db.doc(`users/${userId}/data/accounts`);
     try {
-      const docSnap = await getDoc(accountsRef);
-      if (docSnap.exists()) {
+      const docSnap = await accountsRef.get();
+      if (docSnap.exists) {
         accounts = docSnap.data().accounts || [...DEFAULT_ACCOUNTS];
       } else {
-        accounts = [...DEFAULT_ACCOUNTS];
+        // Fallback to localStorage if Firebase doc doesn't exist
+        const saved = localStorage.getItem(ACCOUNTS_KEY);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length) {
+              if (typeof parsed[0] === 'string') {
+                accounts = parsed.map(name => ({ name, balance: 0 }));
+              } else {
+                accounts = parsed;
+              }
+            } else {
+              accounts = [...DEFAULT_ACCOUNTS];
+            }
+          } catch {
+            accounts = [...DEFAULT_ACCOUNTS];
+          }
+        } else {
+          accounts = [...DEFAULT_ACCOUNTS];
+        }
       }
       // Set up real-time listener
-      onSnapshot(accountsRef, (docSnap) => {
-        if (docSnap.exists()) {
+      accountsRef.onSnapshot((docSnap) => {
+        if (docSnap.exists) {
           accounts = docSnap.data().accounts || [...DEFAULT_ACCOUNTS];
           refreshApp();
         }
@@ -72,6 +91,23 @@ async function loadAccounts() {
       return accounts;
     } catch (error) {
       console.error('Error loading accounts:', error);
+      // Fallback to localStorage on error
+      const saved = localStorage.getItem(ACCOUNTS_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length) {
+            if (typeof parsed[0] === 'string') {
+              return parsed.map(name => ({ name, balance: 0 }));
+            } else {
+              return parsed;
+            }
+          }
+        } catch {
+          return [...DEFAULT_ACCOUNTS];
+        }
+      }
+      return [...DEFAULT_ACCOUNTS];
     }
   }
   // Fallback to localStorage
@@ -92,9 +128,9 @@ async function loadAccounts() {
 }
 
 function saveAccounts() {
-  if (db && userId) {
-    const accountsRef = doc(db, 'users', userId, 'data', 'accounts');
-    setDoc(accountsRef, { accounts }).catch((error) => {
+  if (db && userId && db.doc) {
+    const accountsRef = db.doc(`users/${userId}/data/accounts`);
+    accountsRef.set({ accounts }).catch((error) => {
       console.error('Error saving accounts:', error);
     });
   }
@@ -103,18 +139,28 @@ function saveAccounts() {
 }
 
 async function loadTransactions() {
-  if (db && userId) {
-    const transactionsRef = doc(db, 'users', userId, 'data', 'transactions');
+  if (db && userId && db.doc) {
+    const transactionsRef = db.doc(`users/${userId}/data/transactions`);
     try {
-      const docSnap = await getDoc(transactionsRef);
-      if (docSnap.exists()) {
+      const docSnap = await transactionsRef.get();
+      if (docSnap.exists) {
         transactions = docSnap.data().transactions || [];
       } else {
-        transactions = [];
+        // Fallback to localStorage if Firebase doc doesn't exist
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          try {
+            transactions = JSON.parse(saved);
+          } catch {
+            transactions = [];
+          }
+        } else {
+          transactions = [];
+        }
       }
       // Set up real-time listener
-      onSnapshot(transactionsRef, (docSnap) => {
-        if (docSnap.exists()) {
+      transactionsRef.onSnapshot((docSnap) => {
+        if (docSnap.exists) {
           transactions = docSnap.data().transactions || [];
           refreshApp();
         }
@@ -122,6 +168,16 @@ async function loadTransactions() {
       return transactions;
     } catch (error) {
       console.error('Error loading transactions:', error);
+      // Fallback to localStorage on error
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return [];
+        }
+      }
+      return [];
     }
   }
   // Fallback to localStorage
@@ -135,9 +191,9 @@ async function loadTransactions() {
 }
 
 function saveTransactions() {
-  if (db && userId) {
-    const transactionsRef = doc(db, 'users', userId, 'data', 'transactions');
-    setDoc(transactionsRef, { transactions }).catch((error) => {
+  if (db && userId && db.doc) {
+    const transactionsRef = db.doc(`users/${userId}/data/transactions`);
+    transactionsRef.set({ transactions }).catch((error) => {
       console.error('Error saving transactions:', error);
     });
   }
@@ -707,31 +763,8 @@ clearDataButton.addEventListener('click', () => {
   refreshApp();
 });
 
-window.addEventListener('DOMContentLoaded', async () => {
-  // Wait for Firebase auth
-  if (window.auth) {
-    window.auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        userId = user.uid;
-        // Load data from Firestore
-        accounts = await loadAccounts();
-        transactions = await loadTransactions();
-        populateAccountLists();
-        resetFormState();
-        dateInput.value = new Date().toISOString().slice(0, 10);
-        refreshApp();
-      } else {
-        // Fallback to localStorage if not signed in
-        accounts = await loadAccounts();
-        transactions = await loadTransactions();
-        populateAccountLists();
-        resetFormState();
-        dateInput.value = new Date().toISOString().slice(0, 10);
-        refreshApp();
-      }
-    });
-  } else {
-    // Fallback if Firebase not loaded
+async function initApp() {
+  async function finishInit() {
     accounts = await loadAccounts();
     transactions = await loadTransactions();
     populateAccountLists();
@@ -739,4 +772,21 @@ window.addEventListener('DOMContentLoaded', async () => {
     dateInput.value = new Date().toISOString().slice(0, 10);
     refreshApp();
   }
-});
+
+  if (window.auth) {
+    window.auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        userId = user.uid;
+      }
+      await finishInit();
+    });
+  } else {
+    await finishInit();
+  }
+}
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
