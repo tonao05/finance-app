@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'finance-tracker-data';
+﻿const STORAGE_KEY = 'finance-tracker-data';
 const ACCOUNTS_KEY = 'finance-tracker-accounts';
 const DEFAULT_ACCOUNTS = [
   { name: 'Savings', balance: 0 },
@@ -784,15 +784,6 @@ async function initApp() {
       updateAuthUI(user);
       await finishInit();
     });
-
-    // Handle redirect result
-    window.auth.getRedirectResult().then((result) => {
-      if (result.user) {
-        console.log('Signed in via redirect:', result.user.email);
-      }
-    }).catch((error) => {
-      console.error('Redirect sign-in error:', error);
-    });
   } else {
     await finishInit();
   }
@@ -822,7 +813,7 @@ if (document.readyState === 'loading') {
 if (signInButton) {
   signInButton.addEventListener('click', () => {
     const provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithRedirect(provider).catch((error) => {
+    firebase.auth().signInWithPopup(provider).catch((error) => {
       console.error('Google sign-in failed:', error);
     });
   });
@@ -835,3 +826,4 @@ if (signOutButton) {
     });
   });
 }
+
