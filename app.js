@@ -814,16 +814,22 @@ async function initApp() {
 
 function updateAuthUI(user) {
   if (!user || user.isAnonymous) {
-    if (signInButton) signInButton.style.display = 'inline-block';
+    if (signInButton) {
+      signInButton.style.display = 'inline-block';
+      signInButton.textContent = 'Sign In with Google';
+    }
     if (signOutButton) signOutButton.style.display = 'none';
     if (userStatusEl) userStatusEl.textContent = '';
     return;
   }
 
-  if (signInButton) signInButton.style.display = 'none';
+  if (signInButton) {
+    signInButton.style.display = 'inline-block';
+    signInButton.textContent = user.email ? `Sign in as ${user.email}` : 'Sign in';
+  }
   if (signOutButton) signOutButton.style.display = 'inline-block';
   if (userStatusEl) {
-    userStatusEl.textContent = user.email ? `Signed in as ${user.email}` : 'Signed in';
+    userStatusEl.textContent = '';
   }
 }
 
@@ -836,7 +842,7 @@ if (document.readyState === 'loading') {
 if (signInButton) {
   signInButton.addEventListener('click', () => {
     const provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithRedirect(provider).catch((error) => {
+    firebase.auth().signInWithPopup(provider).catch((error) => {
       console.error('Google sign-in failed:', error);
     });
   });

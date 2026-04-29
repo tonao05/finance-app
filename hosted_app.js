@@ -827,7 +827,7 @@ if (document.readyState === 'loading') {
 if (signInButton) {
   signInButton.addEventListener('click', () => {
     const provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithRedirect(provider).catch((error) => {
+    firebase.auth().signInWithPopup(provider).catch((error) => {
       console.error('Google sign-in failed:', error);
     });
   });
