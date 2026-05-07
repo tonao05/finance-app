@@ -353,6 +353,55 @@ tbody tr:hover {
   background: #dc2626;
 }
 
+/* Daily expenses styling */
+.daily-expenses-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 12px;
+  margin-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.95rem;
+}
+
+.daily-expense {
+  background: #f1f5f9;
+  padding: 8px 12px;
+}
+
+/* Income row highlighting */
+.income-row {
+  background-color: rgba(34, 197, 94, 0.08);
+}
+
+.income-row:hover {
+  background-color: rgba(34, 197, 94, 0.12);
+}
+
+/* Day separator styling */
+.day-separator {
+  height: 16px;
+}
+
+.day-separator-line {
+  border-top: 2px solid #e2e8f0;
+  margin: 8px 0;
+}
+
+.date-label-row {
+  background: #f8fafc;
+}
+
+.date-label {
+  font-weight: 600;
+  color: #475569;
+  padding: 12px 10px !important;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+}
+
 @media (max-width: 900px) {
   .overview-grid {
     grid-template-columns: 1fr;

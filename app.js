@@ -476,6 +476,39 @@ function updateExpenseAnalysis() {
   header.innerHTML = `<strong>Total expenses</strong><strong>${formatCurrency(totalExpenses)}</strong>`;
   analysisEl.appendChild(header);
 
+  // Calculate today and yesterday expenses
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const todayStr = today.toISOString().split('T')[0];
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+  const todayExpenses = transactions
+    .filter(item => item.type === 'expense' && item.date === todayStr)
+    .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+  const yesterdayExpenses = transactions
+    .filter(item => item.type === 'expense' && item.date === yesterdayStr)
+    .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+  // Add daily expenses section
+  const dailyHeader = document.createElement('div');
+  dailyHeader.className = 'daily-expenses-header';
+  dailyHeader.innerHTML = '<strong>Daily Expenses</strong>';
+  analysisEl.appendChild(dailyHeader);
+
+  const dailyItem1 = document.createElement('div');
+  dailyItem1.className = 'expense-item daily-expense';
+  dailyItem1.innerHTML = `<span>Today</span><span>${formatCurrency(todayExpenses)}</span>`;
+  analysisEl.appendChild(dailyItem1);
+
+  const dailyItem2 = document.createElement('div');
+  dailyItem2.className = 'expense-item daily-expense';
+  dailyItem2.innerHTML = `<span>Yesterday</span><span>${formatCurrency(yesterdayExpenses)}</span>`;
+  analysisEl.appendChild(dailyItem2);
+
   if (totalExpenses === 0) {
     const empty = document.createElement('p');
     empty.textContent = 'No expense data yet.';
@@ -549,28 +582,52 @@ function renderTransactions() {
     return;
   }
 
-  transactions
+  const sorted = transactions
     .slice()
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .forEach((item) => {
-      const accountText = item.type === 'transfer' ? `${item.fromAccount || '—'} → ${item.toAccount || '—'}` : item.account;
-      const sign = item.type === 'income' ? '+' : item.type === 'expense' ? '-' : '';
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${item.date}</td>
-        <td>${item.type}</td>
-        <td>${item.category}</td>
-        <td>${accountText}</td>
-        <td>${sign}${formatCurrency(item.amount)}</td>
-        <td>${item.description || ''}</td>
-        <td>${item.receipt ? `<img src="${item.receipt}" alt="receipt" class="receipt-preview" />` : '—'}</td>
-        <td>
-          <button class="secondary edit-button" data-id="${item.id}">Edit</button>
-          <button class="action-button" data-id="${item.id}">Delete</button>
-        </td>
-      `;
-      tableBody.appendChild(tr);
-    });
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  let previousDate = null;
+
+  sorted.forEach((item, index) => {
+    // Add day separator if date changed
+    if (item.date !== previousDate) {
+      previousDate = item.date;
+      const separatorRow = document.createElement('tr');
+      separatorRow.className = 'day-separator';
+      separatorRow.innerHTML = `<td colspan="8"><div class="day-separator-line"></div></td>`;
+      tableBody.appendChild(separatorRow);
+
+      // Add date label row
+      const dateRow = document.createElement('tr');
+      dateRow.className = 'date-label-row';
+      dateRow.innerHTML = `<td colspan="8" class="date-label">${formatDate(item.date)}</td>`;
+      tableBody.appendChild(dateRow);
+    }
+
+    const accountText = item.type === 'transfer' ? `${item.fromAccount || '—'} → ${item.toAccount || '—'}` : item.account;
+    const sign = item.type === 'income' ? '+' : item.type === 'expense' ? '-' : '';
+    const tr = document.createElement('tr');
+    
+    // Add income-highlight class for income transactions
+    if (item.type === 'income') {
+      tr.className = 'income-row';
+    }
+    
+    tr.innerHTML = `
+      <td>${item.date}</td>
+      <td>${item.type}</td>
+      <td>${item.category}</td>
+      <td>${accountText}</td>
+      <td>${sign}${formatCurrency(item.amount)}</td>
+      <td>${item.description || ''}</td>
+      <td>${item.receipt ? `<img src="${item.receipt}" alt="receipt" class="receipt-preview" />` : '—'}</td>
+      <td>
+        <button class="secondary edit-button" data-id="${item.id}">Edit</button>
+        <button class="action-button" data-id="${item.id}">Delete</button>
+      </td>
+    `;
+    tableBody.appendChild(tr);
+  });
 }
 
 function addTransaction(transaction) {
