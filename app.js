@@ -522,8 +522,8 @@ function updateExpenseAnalysis() {
   const dailySection = document.createElement('section');
   dailySection.className = 'expense-section';
   dailySection.innerHTML = `<div class="section-title">Today vs Yesterday</div>`;
-  dailySection.appendChild(createExpenseLine('Today', todayExpenses));
-  dailySection.appendChild(createExpenseLine('Yesterday', yesterdayExpenses));
+  dailySection.appendChild(createExpenseLine('Today', todayExpenses, formatDate(todayStr)));
+  dailySection.appendChild(createExpenseLine('Yesterday', yesterdayExpenses, formatDate(yesterdayStr)));
   analysisEl.appendChild(dailySection);
 
   const categorySection = document.createElement('section');
@@ -549,10 +549,11 @@ function updateExpenseAnalysis() {
   analysisEl.appendChild(categorySection);
 }
 
-function createExpenseLine(label, amount) {
+function createExpenseLine(label, amount, dateLabel) {
   const line = document.createElement('div');
   line.className = 'expense-item daily-expense';
-  line.innerHTML = `<span>${label}</span><span>${formatCurrency(amount)}</span>`;
+  const title = dateLabel ? `${label} (${dateLabel})` : label;
+  line.innerHTML = `<span>${title}</span><span>${formatCurrency(amount)}</span>`;
   return line;
 }
 
@@ -900,23 +901,37 @@ function escapeCsvField(field) {
 }
 
 exportJsonButton.addEventListener('click', () => {
-  const json = JSON.stringify(transactions, null, 2);
+  const exportData = transactions.map((item) => ({
+    ...item,
+    expenseAmount: item.type === 'expense' ? item.amount : '0.00',
+    incomeAmount: item.type === 'income' ? item.amount : '0.00',
+    transferAmount: item.type === 'transfer' ? item.amount : '0.00',
+  }));
+  const json = JSON.stringify(exportData, null, 2);
   downloadFile('finance-data.json', json);
 });
 
 exportCsvButton.addEventListener('click', () => {
-  const header = ['Date', 'Type', 'Category', 'Account', 'From Account', 'To Account', 'Amount', 'Description', 'Receipt'];
-  const rows = transactions.map((item) => [
-    item.date,
-    item.type,
-    escapeCsvField(item.category),
-    escapeCsvField(item.account || ''),
-    escapeCsvField(item.fromAccount || ''),
-    escapeCsvField(item.toAccount || ''),
-    item.amount,
-    escapeCsvField(item.description || ''),
-    item.receipt ? 'Included' : 'None',
-  ]);
+  const header = ['Date', 'Type', 'Category', 'Account', 'From Account', 'To Account', 'Amount', 'Expense Amount', 'Income Amount', 'Transfer Amount', 'Description', 'Receipt'];
+  const rows = transactions.map((item) => {
+    const expenseAmount = item.type === 'expense' ? item.amount : '0.00';
+    const incomeAmount = item.type === 'income' ? item.amount : '0.00';
+    const transferAmount = item.type === 'transfer' ? item.amount : '0.00';
+    return [
+      item.date,
+      item.type,
+      escapeCsvField(item.category),
+      escapeCsvField(item.account || ''),
+      escapeCsvField(item.fromAccount || ''),
+      escapeCsvField(item.toAccount || ''),
+      item.amount,
+      expenseAmount,
+      incomeAmount,
+      transferAmount,
+      escapeCsvField(item.description || ''),
+      item.receipt ? 'Included' : 'None',
+    ];
+  });
   const csv = [header.map(escapeCsvField), ...rows].map((row) => row.join(',')).join('\n');
   downloadFile('finance-data.csv', csv);
 });
