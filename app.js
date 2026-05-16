@@ -484,6 +484,9 @@ function updateExpenseAnalysis() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStr = today.toISOString().split('T')[0];
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
   const currentMonthStr = todayStr.slice(0, 7);
 
   const monthExpenses = transactions.filter(
@@ -496,56 +499,61 @@ function updateExpenseAnalysis() {
     return result;
   }, {});
 
-  analysisEl.innerHTML = '';
-
-  const header = document.createElement('div');
-  header.className = 'expense-item';
-  header.innerHTML = `<strong>This month</strong><strong>${formatCurrency(totalExpenses)}</strong>`;
-  analysisEl.appendChild(header);
-
-  const dailyHeader = document.createElement('div');
-  dailyHeader.className = 'daily-expenses-header';
-  dailyHeader.innerHTML = `<strong>Daily Expenses</strong><span>${formatDate(todayStr)}</span>`;
-  analysisEl.appendChild(dailyHeader);
-
-  const todayExpenses = monthExpenses
-    .filter((item) => item.date === todayStr)
+  const todayExpenses = transactions
+    .filter((item) => item.type === 'expense' && item.date === todayStr)
     .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
 
   const yesterdayExpenses = transactions
     .filter((item) => item.type === 'expense' && item.date === yesterdayStr)
     .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
-  const dailyItem1 = document.createElement('div');
-  dailyItem1.className = 'expense-item daily-expense';
-  dailyItem1.innerHTML = `<span>Today</span><span>${formatCurrency(todayExpenses)}</span>`;
-  analysisEl.appendChild(dailyItem1);
+  analysisEl.innerHTML = '';
 
-  const dailyItem2 = document.createElement('div');
-  dailyItem2.className = 'expense-item daily-expense';
-  dailyItem2.innerHTML = `<span>Yesterday</span><span>${formatCurrency(yesterdayExpenses)}</span>`;
-  analysisEl.appendChild(dailyItem2);
+  const monthSummary = document.createElement('div');
+  monthSummary.className = 'expense-summary-card';
+  monthSummary.innerHTML = `
+    <div>
+      <strong>This month expenses</strong>
+      <span>${formatCurrency(totalExpenses)}</span>
+    </div>
+  `;
+  analysisEl.appendChild(monthSummary);
+
+  const dailySection = document.createElement('section');
+  dailySection.className = 'expense-section';
+  dailySection.innerHTML = `<div class="section-title">Today vs Yesterday</div>`;
+  dailySection.appendChild(createExpenseLine('Today', todayExpenses));
+  dailySection.appendChild(createExpenseLine('Yesterday', yesterdayExpenses));
+  analysisEl.appendChild(dailySection);
+
+  const categorySection = document.createElement('section');
+  categorySection.className = 'expense-section';
+  categorySection.innerHTML = `<div class="section-title">Category summary</div>`;
 
   if (totalExpenses === 0) {
     const empty = document.createElement('p');
-    empty.textContent = 'No expense data for this month yet.';
-    analysisEl.appendChild(empty);
-    return;
+    empty.textContent = 'No expense data available for the current month.';
+    categorySection.appendChild(empty);
+  } else {
+    Object.entries(categoryTotals)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([category, amount]) => {
+        const pct = totalExpenses ? ((amount / totalExpenses) * 100).toFixed(1) : '0.0';
+        const item = document.createElement('div');
+        item.className = 'expense-item';
+        item.innerHTML = `<span>${category}</span><span>${formatCurrency(amount)} (${pct}%)</span>`;
+        categorySection.appendChild(item);
+      });
   }
 
-  Object.entries(categoryTotals)
-    .sort((a, b) => b[1] - a[1])
-    .forEach(([category, amount]) => {
-      const pct = totalExpenses ? ((amount / totalExpenses) * 100).toFixed(1) : '0.0';
-      const item = document.createElement('div');
-      item.className = 'expense-item';
-      item.innerHTML = `<span>${category}</span><span>${formatCurrency(amount)} (${pct}%)</span>`;
-      analysisEl.appendChild(item);
-    });
+  analysisEl.appendChild(categorySection);
+}
+
+function createExpenseLine(label, amount) {
+  const line = document.createElement('div');
+  line.className = 'expense-item daily-expense';
+  line.innerHTML = `<span>${label}</span><span>${formatCurrency(amount)}</span>`;
+  return line;
 }
 
 function updateMonthlySummary() {
@@ -558,6 +566,19 @@ function updateMonthlySummary() {
     monthlySummaryEl.textContent = 'No monthly data yet.';
     return;
   }
+
+  const latestMonth = monthKeys[monthKeys.length - 1];
+  const latestTotals = summary[latestMonth];
+  const latestSummary = document.createElement('div');
+  latestSummary.className = 'latest-month-summary';
+  latestSummary.innerHTML = `
+    <div>
+      <span class="latest-month-label">Latest month</span>
+      <strong>${latestMonth}</strong>
+    </div>
+    <div class="latest-month-value">Net ${formatCurrency(latestTotals.net)}</div>
+  `;
+  monthlySummaryEl.appendChild(latestSummary);
 
   const maxValue = Math.max(
     ...monthKeys.map((month) => {
