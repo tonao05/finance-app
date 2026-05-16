@@ -309,14 +309,16 @@ function populateAccountLists() {
 }
 
 function populateAccountsList() {
+  const balances = computeBalances();
   accountsListEl.innerHTML = '';
   accounts.forEach((account, index) => {
+    const currentBalance = balances[account.name] !== undefined ? balances[account.name] : account.balance;
     const tr = document.createElement('tr');
     tr.setAttribute('draggable', 'true');
     tr.dataset.index = index;
     tr.innerHTML = `
       <td>${account.name}</td>
-      <td>${formatCurrency(account.balance)}</td>
+      <td>${formatCurrency(currentBalance)}</td>
       <td>
         <button class="secondary edit-account" data-index="${index}">Edit</button>
         <button class="action-button delete-account" data-index="${index}">Delete</button>
@@ -393,6 +395,17 @@ function editAccount(index) {
       <button class="secondary cancel-edit-account">Cancel</button>
     </td>
   `;
+
+  // Add real-time balance update
+  const balanceInput = tr.querySelector('.edit-balance');
+  balanceInput.addEventListener('input', () => {
+    const newBalance = Number(balanceInput.value) || 0;
+    // Temporarily update the account balance for balance calculation
+    const originalBalance = accounts[index].balance;
+    accounts[index].balance = newBalance;
+    updateBalances();
+    accounts[index].balance = originalBalance; // Restore original for now
+  });
 }
 
 function saveAccountEdit(index) {
@@ -421,6 +434,7 @@ function saveAccountEdit(index) {
 
 function cancelAccountEdit(index) {
   populateAccountsList();
+  updateBalances(); // Restore balances after canceling edit
 }
 
 function deleteAccount(index) {
@@ -431,7 +445,6 @@ function deleteAccount(index) {
   saveAccounts();
   populateAccountLists();
   populateAccountsList();
-  refreshApp();
 }
 
 function updateBalances() {
@@ -468,36 +481,44 @@ function updateBalances() {
 }
 
 function updateExpenseAnalysis() {
-  const { totalExpenses, categoryTotals } = computeExpenseAnalysis();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split('T')[0];
+  const currentMonthStr = todayStr.slice(0, 7);
+
+  const monthExpenses = transactions.filter(
+    (item) => item.type === 'expense' && item.date && item.date.startsWith(currentMonthStr)
+  );
+
+  const totalExpenses = monthExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  const categoryTotals = monthExpenses.reduce((result, item) => {
+    result[item.category] = (result[item.category] || 0) + Number(item.amount || 0);
+    return result;
+  }, {});
+
   analysisEl.innerHTML = '';
 
   const header = document.createElement('div');
   header.className = 'expense-item';
-  header.innerHTML = `<strong>Total expenses</strong><strong>${formatCurrency(totalExpenses)}</strong>`;
+  header.innerHTML = `<strong>This month</strong><strong>${formatCurrency(totalExpenses)}</strong>`;
   analysisEl.appendChild(header);
 
-  // Calculate today and yesterday expenses
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  const todayStr = today.toISOString().split('T')[0];
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-  const todayExpenses = transactions
-    .filter(item => item.type === 'expense' && item.date === todayStr)
-    .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-
-  const yesterdayExpenses = transactions
-    .filter(item => item.type === 'expense' && item.date === yesterdayStr)
-    .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-
-  // Add daily expenses section
   const dailyHeader = document.createElement('div');
   dailyHeader.className = 'daily-expenses-header';
-  dailyHeader.innerHTML = '<strong>Daily Expenses</strong>';
+  dailyHeader.innerHTML = `<strong>Daily Expenses</strong><span>${formatDate(todayStr)}</span>`;
   analysisEl.appendChild(dailyHeader);
+
+  const todayExpenses = monthExpenses
+    .filter((item) => item.date === todayStr)
+    .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+  const yesterdayExpenses = transactions
+    .filter((item) => item.type === 'expense' && item.date === yesterdayStr)
+    .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
   const dailyItem1 = document.createElement('div');
   dailyItem1.className = 'expense-item daily-expense';
@@ -511,7 +532,7 @@ function updateExpenseAnalysis() {
 
   if (totalExpenses === 0) {
     const empty = document.createElement('p');
-    empty.textContent = 'No expense data yet.';
+    empty.textContent = 'No expense data for this month yet.';
     analysisEl.appendChild(empty);
     return;
   }
@@ -519,7 +540,7 @@ function updateExpenseAnalysis() {
   Object.entries(categoryTotals)
     .sort((a, b) => b[1] - a[1])
     .forEach(([category, amount]) => {
-      const pct = ((amount / totalExpenses) * 100).toFixed(1);
+      const pct = totalExpenses ? ((amount / totalExpenses) * 100).toFixed(1) : '0.0';
       const item = document.createElement('div');
       item.className = 'expense-item';
       item.innerHTML = `<span>${category}</span><span>${formatCurrency(amount)} (${pct}%)</span>`;
@@ -575,59 +596,91 @@ function updateMonthlySummary() {
 
 function renderTransactions() {
   tableBody.innerHTML = '';
-  if (transactions.length === 0) {
-    const row = document.createElement('tr');
-    row.innerHTML = '<td colspan="8" style="text-align:center; padding: 18px;">No transactions recorded.</td>';
-    tableBody.appendChild(row);
-    return;
-  }
+  const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const transactionsByDate = {};
 
-  const sorted = transactions
-    .slice()
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  let previousDate = null;
-
-  sorted.forEach((item, index) => {
-    // Add day separator if date changed
-    if (item.date !== previousDate) {
-      previousDate = item.date;
-      const separatorRow = document.createElement('tr');
-      separatorRow.className = 'day-separator';
-      separatorRow.innerHTML = `<td colspan="8"><div class="day-separator-line"></div></td>`;
-      tableBody.appendChild(separatorRow);
-
-      // Add date label row
-      const dateRow = document.createElement('tr');
-      dateRow.className = 'date-label-row';
-      dateRow.innerHTML = `<td colspan="8" class="date-label">${formatDate(item.date)}</td>`;
-      tableBody.appendChild(dateRow);
+  sortedTransactions.forEach((item) => {
+    if (!transactionsByDate[item.date]) {
+      transactionsByDate[item.date] = [];
     }
-
-    const accountText = item.type === 'transfer' ? `${item.fromAccount || '—'} → ${item.toAccount || '—'}` : item.account;
-    const sign = item.type === 'income' ? '+' : item.type === 'expense' ? '-' : '';
-    const tr = document.createElement('tr');
-    
-    // Add income-highlight class for income transactions
-    if (item.type === 'income') {
-      tr.className = 'income-row';
-    }
-    
-    tr.innerHTML = `
-      <td>${item.date}</td>
-      <td>${item.type}</td>
-      <td>${item.category}</td>
-      <td>${accountText}</td>
-      <td>${sign}${formatCurrency(item.amount)}</td>
-      <td>${item.description || ''}</td>
-      <td>${item.receipt ? `<img src="${item.receipt}" alt="receipt" class="receipt-preview" />` : '—'}</td>
-      <td>
-        <button class="secondary edit-button" data-id="${item.id}">Edit</button>
-        <button class="action-button" data-id="${item.id}">Delete</button>
-      </td>
-    `;
-    tableBody.appendChild(tr);
+    transactionsByDate[item.date].push(item);
   });
+
+  const dates = Object.keys(transactionsByDate).sort((a, b) => new Date(b) - new Date(a));
+  const showAll = tableBody.dataset.showAll === 'true';
+  const datesToShow = showAll ? dates : dates.slice(0, 5);
+  const hasMore = dates.length > 5 && !showAll;
+
+  datesToShow.forEach((date) => {
+    const separatorRow = document.createElement('tr');
+    separatorRow.className = 'day-separator';
+    separatorRow.innerHTML = `<td colspan="8"><div class="day-separator-line"></div></td>`;
+    tableBody.appendChild(separatorRow);
+
+    const dateRow = document.createElement('tr');
+    dateRow.className = 'date-label-row';
+    dateRow.innerHTML = `<td colspan="8" class="date-label">${formatDate(date)}</td>`;
+    tableBody.appendChild(dateRow);
+
+    transactionsByDate[date].forEach((item) => {
+      const accountText = item.type === 'transfer' ? `${item.fromAccount || '—'} → ${item.toAccount || '—'}` : item.account;
+      const sign = item.type === 'income' ? '+' : item.type === 'expense' ? '-' : '';
+      const tr = document.createElement('tr');
+      if (item.type === 'income') {
+        tr.classList.add('income-row');
+      }
+      if (item.type === 'transfer') {
+        tr.classList.add('transfer-row');
+      }
+
+      tr.innerHTML = `
+        <td>${item.date}</td>
+        <td>${item.type}</td>
+        <td>${item.category}</td>
+        <td>${accountText}</td>
+        <td>${sign}${formatCurrency(item.amount)}</td>
+        <td>${item.description || ''}</td>
+        <td>${item.receipt ? `<img src="${item.receipt}" alt="receipt" class="receipt-preview" />` : '—'}</td>
+        <td>
+          <button class="secondary edit-button" data-id="${item.id}">Edit</button>
+          <button class="action-button" data-id="${item.id}">Delete</button>
+        </td>
+      `;
+      tableBody.appendChild(tr);
+    });
+  });
+
+  if (hasMore) {
+    const showMoreRow = document.createElement('tr');
+    showMoreRow.className = 'show-more-row';
+    showMoreRow.innerHTML = `<td colspan="8" style="text-align: center; padding: 16px;"><button id="show-more-btn" class="secondary">Show More (${dates.length - 5} more days)</button></td>`;
+    tableBody.appendChild(showMoreRow);
+
+    setTimeout(() => {
+      const showMoreBtn = document.getElementById('show-more-btn');
+      if (showMoreBtn) {
+        showMoreBtn.addEventListener('click', () => {
+          tableBody.dataset.showAll = 'true';
+          renderTransactions();
+        });
+      }
+    }, 0);
+  } else if (showAll && dates.length > 5) {
+    const showLessRow = document.createElement('tr');
+    showLessRow.className = 'show-more-row';
+    showLessRow.innerHTML = `<td colspan="8" style="text-align: center; padding: 16px;"><button id="show-less-btn" class="secondary">Show Less</button></td>`;
+    tableBody.appendChild(showLessRow);
+
+    setTimeout(() => {
+      const showLessBtn = document.getElementById('show-less-btn');
+      if (showLessBtn) {
+        showLessBtn.addEventListener('click', () => {
+          tableBody.dataset.showAll = 'false';
+          renderTransactions();
+        });
+      }
+    }, 0);
+  }
 }
 
 function addTransaction(transaction) {
